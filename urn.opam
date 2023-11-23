@@ -2,7 +2,8 @@
 opam-version: "2.0"
 version: "20231123"
 synopsis: "Urn data structure for fast pure functional random sampling"
-description: "A longer description"
+description:
+  "An implementation of the urn data structure described in https://dl.acm.org/doi/pdf/10.1145/3122955.3122959."
 maintainer: ["jpfrank@umd.edu"]
 authors: ["Justin Frank"]
 license: "MIT"
