@@ -17,5 +17,5 @@
  (name urn)
  (synopsis "Urn data structure for fast pure functional random sampling")
  (description "An implementation of the urn data structure described in https://dl.acm.org/doi/pdf/10.1145/3122955.3122959.")
- (depends ocaml dune)
+ (depends (ocaml (>= 4.12)) dune)
  (version 20231123))

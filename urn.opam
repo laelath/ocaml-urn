@@ -10,7 +10,7 @@ license: "MIT"
 homepage: "https://github.com/laelath/ocaml-urn"
 bug-reports: "https://github.com/laelath/ocaml-urn/issues"
 depends: [
-  "ocaml"
+  "ocaml" {>= "4.12"}
   "dune" {>= "3.11"}
   "odoc" {with-doc}
 ]
