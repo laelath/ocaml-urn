@@ -16,8 +16,6 @@
 (package
  (name urn)
  (synopsis "Urn data structure for fast pure functional random sampling")
- (description "A longer description")
+ (description "An implementation of the urn data structure described in https://dl.acm.org/doi/pdf/10.1145/3122955.3122959.")
  (depends ocaml dune)
  (version 20231123))
-
-; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
