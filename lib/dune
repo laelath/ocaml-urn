@@ -1,3 +1,7 @@
 (library
+ (synopsis "Implementation of the urn data structure")
  (public_name urn)
  (name urn))
+
+ (documentation
+  (package urn))

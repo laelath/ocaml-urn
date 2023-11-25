@@ -1,10 +1,9 @@
-(* an implementation of the Urn datatype described in
-   Ode to a Random Urn *)
-(* TODO: add a better reference *)
+(* an implementation of the Urn datatype described in Ode on a Random Urn
+  https://dl.acm.org/doi/pdf/10.1145/3122955.3122959 *)
 
 open AlmostPerfect
 
-let test_bit i j = Int.logand i (1 lsl j) <> 0
+let test_bit i j = i land (1 lsl j) <> 0
 
 module type WeightType =
   sig
@@ -13,8 +12,6 @@ module type WeightType =
     val zero : t
     val add : t -> t -> t
     val sub : t -> t -> t
-    (* sample function should produce a value between
-       0 inclusive and the provided value exclusive *)
     val sample : t -> t
   end
 
@@ -25,7 +22,7 @@ end
 
 module FloatWeight = struct
   include Float
-  let sample = Random.float
+  let sample n = Random.float (Float.pred n)
 end
 
 (* sample, remove, update, update_opt, replace are effectful *)
@@ -36,18 +33,18 @@ module type U =
     type !+'a t
     val singleton : weight -> 'a -> 'a t
     val of_list : (weight * 'a) list -> 'a t option
-    val sample : 'a t -> 'a
-    val remove : 'a t -> (weight * 'a) * 'a t option
     val add : weight -> 'a -> 'a t -> 'a t
     val add_seq : (weight * 'a) Seq.t -> 'a t -> 'a t
     val add_list : (weight * 'a) list -> 'a t -> 'a t
+    val sample : 'a t -> 'a
+    val remove : 'a t -> (weight * 'a) * 'a t option
+    val replace : weight -> 'a -> 'a t -> (weight * 'a) * 'a t
     val update :
       (weight -> 'a -> weight * 'a) -> 'a t ->
       (weight * 'a) * (weight * 'a) * 'a t
     val update_opt :
       (weight -> 'a -> (weight * 'a) option) -> 'a t ->
       (weight * 'a) * (weight * 'a) option * 'a t option
-    val replace : weight -> 'a -> 'a t -> (weight * 'a) * 'a t
     val size : 'a t -> int
     val weight : 'a t -> weight
   end
@@ -59,11 +56,19 @@ module Make(Weight : WeightType) = struct
   let (+) = Weight.add
   let (-) = Weight.sub
 
+  let wlt a b = Weight.compare a b < 0
+  let wle a b = Weight.compare a b <= 0
+
   type 'a wtree =
       WLeaf of {w: weight; a: 'a}
     | WNode of {w: weight; l: 'a wtree; r: 'a wtree}
 
   type 'a t = {size: int; tree: 'a wtree}
+
+  let check_weight w =
+    if wle w Weight.zero
+    then invalid_arg "non-positive weight added to urn"
+    else ()
 
   let size urn = urn.size
 
@@ -75,7 +80,7 @@ module Make(Weight : WeightType) = struct
   let weight {tree; _} = weight_tree tree
 
   let singleton w a =
-    if w <= Weight.zero then invalid_arg "TODO";
+    check_weight w;
     {size=1; tree=WLeaf {w; a}}
 
   let sampler f urn = f urn (Weight.sample (weight urn))
@@ -86,7 +91,7 @@ module Make(Weight : WeightType) = struct
       | WLeaf {a; _} -> a
       | WNode {l; r; _} ->
          let wl = weight_tree l in
-         if i < wl
+         if wlt i wl
          then sample_tree l i
          else sample_tree r (i - wl)
     in sample_tree tree0 i
@@ -98,11 +103,11 @@ module Make(Weight : WeightType) = struct
       match tree with
       | WLeaf {w; a} ->
         let (w', a') = upd w a in
-        if w' <= Weight.zero then invalid_arg "TODO";
+        check_weight w';
         ((w, a), (w', a'), WLeaf {w=w'; a=a'})
       | WNode {w; l; r} ->
         let wl = weight_tree l in
-        if i < wl
+        if wlt i wl
         then let (old, nw, l') = update_tree l i in
              (old, nw, WNode {w=w - fst old + fst nw; l=l'; r})
         else let (old, nw, r') = update_tree r (i - wl) in
@@ -113,14 +118,14 @@ module Make(Weight : WeightType) = struct
   let update upd urn = sampler (update_index upd) urn
 
   let replace_index w' a' {size; tree=tree0} i =
-    if w' <= Weight.zero then invalid_arg "TODO";
+    check_weight w';
     let rec replace_tree tree i =
       match tree with
       | WLeaf {w; a} ->
          ((w, a), WLeaf {w=w'; a=a'})
       | WNode {w; l; r} ->
          let wl = weight_tree l in
-         if i < wl
+         if wlt i wl
          then let (old, l') = replace_tree l i in
               (old, WNode {w=w - fst old + w'; l=l'; r})
          else let (old, r') = replace_tree r (i - wl) in
@@ -131,7 +136,7 @@ module Make(Weight : WeightType) = struct
   let replace w' a' urn = sampler (replace_index w' a') urn
 
   let add w' a' {size; tree=tree0} =
-    if w' <= Weight.zero then invalid_arg "TODO";
+    check_weight w';
     let[@tail_mod_cons] rec go path tree =
       match tree with
       | WLeaf {w; a} ->
@@ -169,10 +174,10 @@ module Make(Weight : WeightType) = struct
     match urn_opt' with
     | None -> ((w', a'), None)
     | Some urn' ->
-       if i < lb
+       if wlt i lb
        then let (old, urn'') = replace_index w' a' urn' i in
             (old, Some urn'')
-       else if i < lb + w'
+       else if wlt i (lb + w')
        then ((w', a'), Some urn')
        else let (old, urn'') = replace_index w' a' urn' (i - w') in
             (old, Some urn'')
@@ -186,7 +191,7 @@ module Make(Weight : WeightType) = struct
     match upd w a with
     | None -> ((w, a), None, urn_opt')
     | Some (w', a') ->
-      if w' <= Weight.zero then invalid_arg "TODO";
+      check_weight w';
       ((w, a), Some (w', a'),
        match urn_opt' with
        | None -> Some (singleton w' a')
@@ -203,7 +208,7 @@ module Make(Weight : WeightType) = struct
                         (fun l r ->
                           WNode {w=weight_tree l + weight_tree r; l; r})
                         (fun (w, a) ->
-                          if w <= Weight.zero then invalid_arg "TODO";
+                          check_weight w;
                           WLeaf {w; a})
                         size
                         was}
