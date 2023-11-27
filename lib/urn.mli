@@ -45,17 +45,20 @@ module type U =
 
     (** {1:creation Creating Urns} *)
 
+    (** Note: a weight value [w] is non-positive iff
+        [Weight.compare w Weight.zero <= 0]. *)
+
     val singleton : weight -> 'a -> 'a t
     (** [singleton w x] returns the one-element urn containing [x] with
         weight [w]. Time complexity O(1).
         
-        @raise Invalid_argument if [w <= 0]. *)
+        @raise Invalid_argument if [w] is non-positive. *)
 
     val of_list : (weight * 'a) list -> 'a t option
     (** [of_list was] creates an urn from a list of pairs of weights and
         values. Time complexity O(n).
 
-        @raise Invalid_argument if any of the weights are [<= 0]. *)
+        @raise Invalid_argument if any of the weights are non-positive. *)
 
     (** {1:adding Adding Elements to Urns} *)
 
@@ -64,19 +67,19 @@ module type U =
         as [ur] but additionally containing [a] with weight [w].
         Time complexity O(log n).
 
-        @raise Invalid_argument if [w <= 0] *)
+        @raise Invalid_argument if [w] is non-positive. *)
 
     val add_seq : (weight * 'a) Seq.t -> 'a t -> 'a t
     (** Add the weight-value pairs in the sequence to the urn.
         Time complexity O(m log n), where m is the length of the sequence.
 
-        @raise Invalid_argument if any of the weights are [<= 0]. *)
+        @raise Invalid_argument if any of the weights are non-positive. *)
 
     val add_list : (weight * 'a) list -> 'a t -> 'a t
     (** Add the weight-value pairs in the list to the urn.
         Time complexity O(m log n), where m is the length of the list.
 
-        @raise Invalid_argument if any of the weights are [<= 0]. *)
+        @raise Invalid_argument if any of the weights are non-positive. *)
 
     (** {1:sampling Sampling Urns} *)
 
@@ -94,18 +97,19 @@ module type U =
         and its weight along with a new urn with the sampled elements removed
         and [a] with weight [w] added. Time complexity O(log n).
         
-        @raise Invalid_argument if [w <= 0]. *)
+        @raise Invalid_argument if [w] is non-positive. *)
 
     val update :
       (weight -> 'a -> weight * 'a) -> 'a t ->
       (weight * 'a) * (weight * 'a) * 'a t
     (** [update f ur] samples an element of the urn [ur], then takes the
-        chosen element [a] and its weight [w], and replaces it with [f w a],
-        returning a triple of [(w, a), f w a, ur'] where [ur'] is the urn
-        containing all the elements and weights of [ur] but with the chosen
-        [w, a] replaced by [f w a]. Time complexity O(log n).
+        chosen element [a] and its weight [w], and replaces it with [a'] with
+        weight [w'], where [(w', a') = f w a], returning a triple of
+        [(w, a), (w', a'), ur'] where [ur'] is the urn containing all the
+        elements and weights of [ur] but with the chosen
+        [w, a] replaced by [w', a']. Time complexity O(log n).
 
-        @raise Invalid_argument if the weight produced by [f w a] is [<= 0]. *)
+        @raise Invalid_argument if [w'] is non-positive. *)
 
     val update_opt :
       (weight -> 'a -> (weight * 'a) option) -> 'a t ->
@@ -117,7 +121,7 @@ module type U =
         and value is replaced by [w'] and [a'] respectively. The elements of
         the returned triple are as in [update]. Time complexity O(log n).
 
-        @raise Invalid_argument if [w' <= 0]. *)
+        @raise Invalid_argument if [w'] is non-positive. *)
 
     (** {1:misc Misc} *)
 
